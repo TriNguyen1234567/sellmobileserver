@@ -16,7 +16,7 @@ const { Pool } = require('pg')
 
 
 var connectionString =
-    'postgres://pllefsepojzrjk:e5588d74e301ce6478c9ed38b5327ef7a2e15c47204c1298207764d6c5ff0a67@ec2-54-195-246-55.eu-west-1.compute.amazonaws.com:5432/dfdfb5s5eh19no'
+    'postgres://zqjucxeozjmeqv:d9da62430972eaccbc0ed7a01b4949375341bd2e57d2ea4076f45601c32f3190@ec2-44-197-142-172.compute-1.amazonaws.com:5432/d6q81mtui3km92'
 
 app.use(cors());
 
