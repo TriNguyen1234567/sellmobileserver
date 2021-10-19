@@ -273,7 +273,7 @@ app.get('/airpod/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select id, category, name, image1, price, active, summary, new, giamoi from mobilephone where category = 'air_pods_new' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'air_pods_new' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
