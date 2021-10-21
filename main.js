@@ -117,7 +117,8 @@ app.get('/detail/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query('select * from mobilephone ORDER BY no, summary, price', function (error, results, fields) {
+	//pool.query('select * from mobilephone ORDER BY no, summary, price', function (error, results, fields) {
+	pool.query('select summary, category, price, name, no, giamoi, id from mobilephone GROUP BY name,summary, category, price,  no, giamoi, id', function (error, results, fields) {	
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
