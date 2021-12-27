@@ -222,7 +222,7 @@ app.get('/ipad/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'ipad_new' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'applewatch' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -235,7 +235,7 @@ app.get('/applewatch/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'apple_watch_new' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'uqmobile' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -248,7 +248,7 @@ app.get('/macbook/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'macbook_new' ORDER BY no,  price ", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'au' ORDER BY no,  price ", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -261,7 +261,7 @@ app.get('/macbookpro/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'macbookpro' ORDER BY no,  price ", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'docomo' ORDER BY no,  price ", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -274,7 +274,7 @@ app.get('/airpod/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'air_pods_new' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'softbank' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -287,7 +287,7 @@ app.get('/simdata/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'sim_data_wifi_new' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'ymobile' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -300,7 +300,7 @@ app.get('/dienthoaicu/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'dienthoaicu' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'ipad' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -313,7 +313,7 @@ app.get('/iphone/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'iphone_new' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'iphone' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -326,7 +326,7 @@ app.get('/android/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'android' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'イヤホン' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -352,7 +352,7 @@ app.get('/sanphamkhac/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query("select * from mobilephone where category = 'sanphamkhac' ORDER BY no,  price", function (error, results, fields) {
+	pool.query("select * from mobilephone where category = 'その他' ORDER BY no,  price", function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
