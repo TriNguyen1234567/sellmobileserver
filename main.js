@@ -105,7 +105,7 @@ app.get('/admin', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	pool.query('select username,password from admin', function (error, results, fields) {
+    pool.query('select username,password from admin', function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -119,8 +119,8 @@ app.get('/detail/', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
-	//pool.query('select * from mobilephone ORDER BY no, summary, price', function (error, results, fields) {
-	pool.query('select summary, category, price, name, no, giamoi, id from mobilephone GROUP BY category,name,summary, price,  no, giamoi, id', function (error, results, fields) {
+    //pool.query('select * from mobilephone ORDER BY no, summary, price', function (error, results, fields) {
+    pool.query('select summary, category, price, name, no, giamoi, id from mobilephone GROUP BY category,name,summary, price,  no, giamoi, id', function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -412,24 +412,43 @@ app.post('/customers/search', function (req, res) {
 });
 
 app.post('/customers', function (req, res) {
-    var postData = req.body;
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    pool.query('INSERT INTO customer (name_vietnamese, name_japanese, birthday, age, address, phone, job) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', postData, function (error, results, fields) {
-        if (error) throw error;
+    const { name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
+    const customer = {
+        name_vietnamese,
+        name_japanese,
+        birthday,
+        age,
+        address,
+        phone,
+        job
+    }
+    const insertCustomerSql = `INSERT INTO customer (name_vietnamese, name_japanese, birthday, age, address, phone, job) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`
+    pool.query(insertCustomerSql, Object.values(customer), function (error, results, fields) {
         res.end(JSON.stringify(results.rows));
     });
 });
 
 app.put('/customers', function (req, res) {
-    var postData = req.body;
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    pool.query('Update customer SET name_vietnamese = $2, name_japanese= $3, birthday=$4, age=$5, address=$6, phone=$7, job=$8 where id = $1', postData, function (error, results, fields) {
+    const { id, name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
+    const customer = {
+        id,
+        name_vietnamese,
+        name_japanese,
+        birthday,
+        age,
+        address,
+        phone,
+        job
+    }
+    pool.query('Update customer SET name_vietnamese = $2, name_japanese= $3, birthday=$4, age=$5, address=$6, phone=$7, job=$8 where id = $1', Object.values(customer), function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -464,17 +483,28 @@ app.get('/invoices/items/:id', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     const { id } = req.params;
+    const customer = {
+        id: null,
+        address: '',
+        age: 0,
+        birthday: undefined,
+        job: undefined,
+        name_japanese: '',
+        name_vietnamese: '',
+        phone: ''
+    }
     const invoiceInfo = {
-        items: [],
+        mobiles: [],
         invoice_id: null,
         quantity: 0,
         sale_date: null,
-        total_money: 0
+        total_money: 0,
+        customer
     }
     pool.query('SELECT * FROM mobile WHERE invoice_id = $1', [id], function (error, results, fields) {
         if (error) throw error;
         if (results.rows.length > 0) {
-            invoiceInfo.items = results.rows;
+            invoiceInfo.mobiles = results.rows;
             const invoiceSummarySql = `SELECT tblA.invoice_id, tblA.quantity, tblA.total_money, tblB.sale_date, tblB.customer_id FROM (
                                          SELECT invoice_id, COUNT(*) AS quantity, SUM(price) AS total_money FROM mobile GROUP BY invoice_id HAVING invoice_id = $1
                                         ) tblA 
@@ -490,9 +520,17 @@ app.get('/invoices/items/:id', function (req, res) {
                     invoiceInfo.total_money = invoiceDetail.total_money;
                     invoiceInfo.invoice_id = invoiceDetail.invoice_id;
                     invoiceInfo.customer_id = invoiceDetail.customer_id;
+
+                    const customerDataSql = `SELECT * FROM customer WHERE id = $1`;
+                    pool.query(customerDataSql, [invoiceDetail.customer_id], function (error, results, fields) {
+                        if (!error && results.rows.length > 0) {
+                            invoiceInfo.customer = results.rows[0];
+                            res.end(JSON.stringify(invoiceInfo));
+                        }
+                    })
                 }
-                res.end(JSON.stringify(invoiceInfo));
-            });
+
+            })
         } else {
             res.end(JSON.stringify(invoiceInfo));
         }
@@ -516,50 +554,50 @@ app.post('/invoices', function (req, res) {
         mobiles
     }
 
-   
-        // Create new or update a customer
-        if (customer.id == null) {
-            const insertCustomerQuery = `INSERT INTO customer (name_vietnamese, name_japanese, birthday, age, address, phone, job)
-                                        VALUES ('${customer.name_vietnamese}', '${customer.name_japanese}',
-                                                '${customer.birthday}',
-                                                ${customer.age}, '${customer.address}',
-                                                ${customer.phone}, '${customer.job}') RETURNING id`;
-            pool.query(insertCustomerQuery, function (error, results, fields) {
-                if (error) throw error;
-                if (results.rows[0].id) {
-                    invoiceData.customer_id = results.rows[0].id;
-                    createInvoice(invoiceData);
-                } else {
-                    saveInvoiceResponse({
-                        success: false,
-                        error: 'Can not create customer'
-                    })
-                }
-            });
-        } else {
-            const updateCustomerQuery = `UPDATE customer
-                                        SET name_vietnamese = $2,
-                                            name_japanese= $3,
-                                            birthday=$4,
-                                            age=$5,
-                                            address=$6,
-                                            phone=$7,
-                                            job=$8
-                                        where id = $1 RETURNING id`;
-            pool.query(updateCustomerQuery, Object.values(customer), function (error, results, fields) {
-                if (error) throw error;
-                if (results.rows[0].id) {
-                    invoiceData.customer_id = results.rows[0].id;
-                    createInvoice(invoiceData);
-                } else {
-                    saveInvoiceResponse({
-                        success: false,
-                        error: 'Can not update customer'
-                    })
-                }
 
-            });
-        }
+    // Create new or update a customer
+    if (customer.id == null) {
+        const insertCustomerQuery = `INSERT INTO customer (name_vietnamese, name_japanese, birthday, age, address, phone, job)
+                                    VALUES ('${customer.name_vietnamese}', '${customer.name_japanese}',
+                                            '${customer.birthday}',
+                                            ${customer.age}, '${customer.address}',
+                                            ${customer.phone}, '${customer.job}') RETURNING id`;
+        pool.query(insertCustomerQuery, function (error, results, fields) {
+            if (error) throw error;
+            if (results.rows[0].id) {
+                invoiceData.customer_id = results.rows[0].id;
+                createInvoice(invoiceData);
+            } else {
+                saveInvoiceResponse({
+                    success: false,
+                    error: 'Can not create customer'
+                })
+            }
+        });
+    } else {
+        const updateCustomerQuery = `UPDATE customer
+                                    SET name_vietnamese = $2,
+                                        name_japanese= $3,
+                                        birthday=$4,
+                                        age=$5,
+                                        address=$6,
+                                        phone=$7,
+                                        job=$8
+                                    where id = $1 RETURNING id`;
+        pool.query(updateCustomerQuery, Object.values(customer), function (error, results, fields) {
+            if (error) throw error;
+            if (results.rows[0].id) {
+                invoiceData.customer_id = results.rows[0].id;
+                createInvoice(invoiceData);
+            } else {
+                saveInvoiceResponse({
+                    success: false,
+                    error: 'Can not update customer'
+                })
+            }
+
+        });
+    }
 
     /**
      * Create new Invoice
@@ -631,7 +669,7 @@ app.delete('/invoices/:id', function (req, res) {
             res.end(JSON.stringify(results.rows));
         });
     });
-    
+
 });
 
 app.put('/invoices', function (req, res) {
@@ -649,7 +687,8 @@ app.put('/invoices', function (req, res) {
         invoice_id,
         mobiles
     }
-   
+    delete customer.updated_at;
+    delete customer.created_at;
     if (customer.id) {
         const updateCustomerQuery = `UPDATE customer
                                     SET name_vietnamese = $2,
@@ -718,7 +757,7 @@ app.put('/invoices', function (req, res) {
                         if (results.rows) {
                             updateMobilesSuccess = true;
                         }
-        
+
                     });
                 }
             });
@@ -730,7 +769,7 @@ app.put('/invoices', function (req, res) {
                     if (results.rows) {
                        insertMobilesSuccess = true;
                     }
-    
+
                 });
             }
             saveInvoiceResponse({
@@ -915,12 +954,12 @@ app.get('/statistics', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    
+
     getInvoices(type, fromDate, toDate);
 
     function getInvoices(type, fromDate, toDate) {
         var queryString = '';
-        
+
         if (type == 'month') {
             queryString = `SELECT date.dateyear, date.datemonth, CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END, CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END FROM(select DISTINCT EXTRACT(YEAR FROM CURRENT_DATE + i) as dateyear, EXTRACT(MONTH FROM CURRENT_DATE + i) as datemonth from generate_series(date '${fromDate}'- CURRENT_DATE, date '${toDate}' - CURRENT_DATE) i ) date LEFT JOIN (SELECT EXTRACT(YEAR FROM sale_date) as dateyear, EXTRACT(MONTH FROM sale_date) as datemonth, sum(quantity) as quantity, sum(total_money) as total_money FROM invoice WHERE EXTRACT(YEAR FROM sale_date) >= EXTRACT(YEAR FROM TIMESTAMP '${fromDate}') AND EXTRACT(MONTH FROM sale_date) >= EXTRACT(MONTH FROM TIMESTAMP '${fromDate}') AND EXTRACT(YEAR FROM sale_date) <= EXTRACT(YEAR FROM TIMESTAMP '${toDate}') AND EXTRACT(MONTH FROM sale_date) <= EXTRACT(MONTH FROM TIMESTAMP '${toDate}') GROUP BY dateyear, datemonth ORDER BY EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date)) as data on date.dateyear = data.dateyear AND data.datemonth = date.datemonth`;
         } else {
@@ -971,7 +1010,7 @@ app.get('/devices', function (req, res) {
             JOIN invoice b 
                 ON a.invoice_id = b.id
             JOIN customer c
-                ON b.customer_id = c.id`, 
+                ON b.customer_id = c.id`,
         function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
