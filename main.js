@@ -4,7 +4,9 @@ var app = express();
 var mysql = require('mysql');
 var bodyParser = require('body-parser');
 var cors = require('cors');
-const { Pool } = require('pg')
+const {Pool} = require('pg');
+const {ExportService} = require('./services/export.service');
+const {notEmpty} = require("./utils/data.utils");
 
 //MySQL connection
 // var connection = mysql.createConnection({
@@ -38,7 +40,7 @@ const pool = new Pool({
     }
 })
 
-module.exports = { pool }
+module.exports = {pool}
 
 //Body-parser configuration
 app.use(bodyParser.json());       // to support JSON-encoded bodies
@@ -57,16 +59,6 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 // });
 
 var server = app.listen(process.env.PORT || 3001);
-
-
-
-
-
-
-
-
-
-
 
 
 //rest api to update record into mysql database
@@ -361,11 +353,20 @@ app.get('/sanphamkhac/', function (req, res) {
 });
 
 
-
-
 /**
  * SellPhone Management APIs
  */
+
+app.get('/app/info', function (req, res) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Credentials", true);
+    res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
+    res.end(JSON.stringify({
+        version: '1.0.0',
+        release: '20220128'
+    }))
+});
 
 app.get('/customers', function (req, res) {
 
@@ -416,7 +417,7 @@ app.post('/customers', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
+    const {name_vietnamese, name_japanese, birthday, age, address, phone, job} = req.body;
     const customer = {
         name_vietnamese,
         name_japanese,
@@ -426,7 +427,8 @@ app.post('/customers', function (req, res) {
         phone,
         job
     }
-    const insertCustomerSql = `INSERT INTO customer (name_vietnamese, name_japanese, birthday, age, address, phone, job) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`
+    const insertCustomerSql = `INSERT INTO customer (name_vietnamese, name_japanese, birthday, age, address, phone, job)
+                               VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
     pool.query(insertCustomerSql, Object.values(customer), function (error, results, fields) {
         res.end(JSON.stringify(results.rows));
     });
@@ -437,7 +439,7 @@ app.put('/customers', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { id, name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
+    const {id, name_vietnamese, name_japanese, birthday, age, address, phone, job} = req.body;
     const customer = {
         id,
         name_vietnamese,
@@ -482,7 +484,7 @@ app.get('/invoices/items/:id', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { id } = req.params;
+    const {id} = req.params;
     const customer = {
         id: null,
         address: '',
@@ -505,13 +507,23 @@ app.get('/invoices/items/:id', function (req, res) {
         if (error) throw error;
         if (results.rows.length > 0) {
             invoiceInfo.mobiles = results.rows;
-            const invoiceSummarySql = `SELECT tblA.invoice_id, tblA.quantity, tblA.total_money, tblB.sale_date, tblB.customer_id FROM (
-                                         SELECT invoice_id, COUNT(*) AS quantity, SUM(price) AS total_money FROM mobile GROUP BY invoice_id HAVING invoice_id = $1
-                                        ) tblA 
-                                        JOIN (
-                                         SELECT * FROM invoice WHERE id = $1
-                                        ) tblB
-                                        ON tblA.invoice_id = tblB.id`;
+            const invoiceSummarySql = `SELECT tblA.invoice_id,
+                                              tblA.quantity,
+                                              tblA.total_money,
+                                              tblB.sale_date,
+                                              tblB.customer_id
+                                       FROM (
+                                                SELECT invoice_id, COUNT(*) AS quantity, SUM(price) AS total_money
+                                                FROM mobile
+                                                GROUP BY invoice_id
+                                                HAVING invoice_id = $1
+                                            ) tblA
+                                                JOIN (
+                                           SELECT *
+                                           FROM invoice
+                                           WHERE id = $1
+                                       ) tblB
+                                                     ON tblA.invoice_id = tblB.id`;
             pool.query(invoiceSummarySql, [id], function (error, results, fields) {
                 if (!error && results.rows.length > 0) {
                     const invoiceDetail = results.rows[0];
@@ -521,7 +533,9 @@ app.get('/invoices/items/:id', function (req, res) {
                     invoiceInfo.invoice_id = invoiceDetail.invoice_id;
                     invoiceInfo.customer_id = invoiceDetail.customer_id;
 
-                    const customerDataSql = `SELECT * FROM customer WHERE id = $1`;
+                    const customerDataSql = `SELECT *
+                                             FROM customer
+                                             WHERE id = $1`;
                     pool.query(customerDataSql, [invoiceDetail.customer_id], function (error, results, fields) {
                         if (!error && results.rows.length > 0) {
                             invoiceInfo.customer = results.rows[0];
@@ -558,10 +572,10 @@ app.post('/invoices', function (req, res) {
     // Create new or update a customer
     if (customer.id == null) {
         const insertCustomerQuery = `INSERT INTO customer (name_vietnamese, name_japanese, birthday, age, address, phone, job)
-                                    VALUES ('${customer.name_vietnamese}', '${customer.name_japanese}',
-                                            '${customer.birthday}',
-                                            ${customer.age}, '${customer.address}',
-                                            ${customer.phone}, '${customer.job}') RETURNING id`;
+                                     VALUES ('${customer.name_vietnamese}', '${customer.name_japanese}',
+                                             '${customer.birthday}',
+                                             ${customer.age}, '${customer.address}',
+                                             ${customer.phone}, '${customer.job}') RETURNING id`;
         pool.query(insertCustomerQuery, function (error, results, fields) {
             if (error) throw error;
             if (results.rows[0].id) {
@@ -576,14 +590,14 @@ app.post('/invoices', function (req, res) {
         });
     } else {
         const updateCustomerQuery = `UPDATE customer
-                                    SET name_vietnamese = $2,
-                                        name_japanese= $3,
-                                        birthday=$4,
-                                        age=$5,
-                                        address=$6,
-                                        phone=$7,
-                                        job=$8
-                                    where id = $1 RETURNING id`;
+                                     SET name_vietnamese = $2,
+                                         name_japanese= $3,
+                                         birthday=$4,
+                                         age=$5,
+                                         address=$6,
+                                         phone=$7,
+                                         job=$8
+                                     where id = $1 RETURNING id`;
         pool.query(updateCustomerQuery, Object.values(customer), function (error, results, fields) {
             if (error) throw error;
             if (results.rows[0].id) {
@@ -624,7 +638,7 @@ app.post('/invoices', function (req, res) {
      * Save invoice items
      * @param invoiceItems
      */
-     function saveInvoiceItems(invoiceItems = null) {
+    function saveInvoiceItems(invoiceItems = null) {
         const {invoice_id, mobiles} = invoiceItems;
         if (invoice_id != null && mobiles.length > 0) {
             let sqlString = 'INSERT INTO mobile (name, imei, color, status, price, invoice_id) VALUES ';
@@ -691,14 +705,14 @@ app.put('/invoices', function (req, res) {
     delete customer.created_at;
     if (customer.id) {
         const updateCustomerQuery = `UPDATE customer
-                                    SET name_vietnamese = $2,
-                                        name_japanese= $3,
-                                        birthday=$4,
-                                        age=$5,
-                                        address=$6,
-                                        phone=$7,
-                                        job=$8
-                                    where id = $1 RETURNING id`;
+                                     SET name_vietnamese = $2,
+                                         name_japanese= $3,
+                                         birthday=$4,
+                                         age=$5,
+                                         address=$6,
+                                         phone=$7,
+                                         job=$8
+                                     where id = $1 RETURNING id`;
         pool.query(updateCustomerQuery, Object.values(customer), function (error, results, fields) {
             if (error) throw error;
             if (results.rows[0].id) {
@@ -720,7 +734,12 @@ app.put('/invoices', function (req, res) {
      */
     function updateInvoice(invoiceData = null) {
         if (invoice_id !== null && invoiceData !== null) {
-            const updateInvoiceQuery = `UPDATE invoice SET customer_id=${customer.id}, sale_date='${sale_date}', quantity=${quantity}, total_money=${total_money} where id=${invoice_id}  RETURNING id`;
+            const updateInvoiceQuery = `UPDATE invoice
+                                        SET customer_id=${customer.id},
+                                            sale_date='${sale_date}',
+                                            quantity=${quantity},
+                                            total_money=${total_money}
+                                        where id = ${invoice_id} RETURNING id`;
             pool.query(updateInvoiceQuery, function (error, results, fields) {
                 if (error) throw error;
                 invoiceItems.invoice_id = results.rows[0].id;
@@ -747,11 +766,16 @@ app.put('/invoices', function (req, res) {
             var updateMobilesSuccess = false;
             mobiles.forEach((mobile) => {
 
-                if(mobile.id == 0){
+                if (mobile.id == 0) {
                     valueItems.push(`('${mobile.name}', '${mobile.imei}', '${mobile.color}', '${mobile.status}', ${mobile.price}, ${invoice_id})`);
-                }
-                else{
-                    let sqlStringUpdate = `UPDATE mobile SET name = '${mobile.name}' , imei = '${mobile.imei}', color = '${mobile.color}', status = '${mobile.status}', price = ${mobile.price} where id = ${mobile.id} `;
+                } else {
+                    let sqlStringUpdate = `UPDATE mobile
+                                           SET name   = '${mobile.name}',
+                                               imei   = '${mobile.imei}',
+                                               color  = '${mobile.color}',
+                                               status = '${mobile.status}',
+                                               price  = ${mobile.price}
+                                           where id = ${mobile.id} `;
                     pool.query(sqlStringUpdate, function (error, results, fields) {
                         if (error) throw error;
                         if (results.rows) {
@@ -761,13 +785,13 @@ app.put('/invoices', function (req, res) {
                     });
                 }
             });
-            if(valueItems.length !== 0){
+            if (valueItems.length !== 0) {
                 sqlString += valueItems.join(', ');
                 console.log(sqlString);
                 pool.query(sqlString, function (error, results, fields) {
                     if (error) throw error;
                     if (results.rows) {
-                       insertMobilesSuccess = true;
+                        insertMobilesSuccess = true;
                     }
 
                 });
@@ -807,9 +831,9 @@ app.post('/orderInvoices', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { mobiles, sale_date, total_money, quantity } = postData;
+    const {mobiles, sale_date, total_money, quantity} = postData;
 
-    createOrderInvoice({ sale_date, quantity, total_money });
+    createOrderInvoice({sale_date, quantity, total_money});
 
     function createOrderInvoice(data) {
         if (data !== null) {
@@ -851,6 +875,7 @@ app.post('/orderInvoices', function (req, res) {
             })
         }
     }
+
     function saveInvoiceResponse(response = null) {
         res.end(JSON.stringify(response));
     }
@@ -869,12 +894,16 @@ app.get('/orderInvoices/Pending', function (req, res) {
 });
 
 app.get('/orderInvoices/details/:id', function (req, res) {
-    const { id } = req.params;
+    const {id} = req.params;
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    pool.query(`SELECT od.mobileid, mobile."name",mobile.imei, mobile.color, mobile.status, od.price FROM orderdetail od JOIN mobile ON mobile.id = od.mobileid WHERE od.orderid = ${id} ORDER BY id ASC`, function (error, results, fields) {
+    pool.query(`SELECT od.mobileid, mobile."name", mobile.imei, mobile.color, mobile.status, od.price
+                FROM orderdetail od
+                         JOIN mobile ON mobile.id = od.mobileid
+                WHERE od.orderid = ${id}
+                ORDER BY id ASC`, function (error, results, fields) {
         if (error) throw error;
         res.end(JSON.stringify(results.rows));
     });
@@ -886,13 +915,16 @@ app.put('/orderInvoices', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { mobiles, id, total_money } = postData;
+    const {mobiles, id, total_money} = postData;
 
-    updateOrderInvoices({ id, total_money });
+    updateOrderInvoices({id, total_money});
 
     function updateOrderInvoices(data) {
         if (data !== null) {
-            const updateOrderInvoiceQuery = `Update orderinvoice SET  total_money = ${data.total_money}, iscompleted = true where id = ${data.id}`;
+            const updateOrderInvoiceQuery = `Update orderinvoice
+                                             SET total_money = ${data.total_money},
+                                                 iscompleted = true
+                                             where id = ${data.id}`;
             pool.query(updateOrderInvoiceQuery, function (error, results, fields) {
                 if (error) throw error;
                 updateOrderItem(mobiles, data.id);
@@ -909,7 +941,10 @@ app.put('/orderInvoices', function (req, res) {
         if (orderId != null && data.length > 0) {
             const valueItems = []
             data.forEach((mobile) => {
-                valueItems.push(`Update orderdetail SET  price = ${mobile.price} where orderid = ${orderId} and mobileid = ${mobile.id}`);
+                valueItems.push(`Update orderdetail
+                                 SET price = ${mobile.price}
+                                 where orderid = ${orderId}
+                                   and mobileid = ${mobile.id}`);
             });
             var sqlString = valueItems.join('; ') + ';';
             pool.query(sqlString, function (error, results, fields) {
@@ -961,13 +996,32 @@ app.get('/statistics', function (req, res) {
         var queryString = '';
 
         if (type === 'month') {
-            queryString = `SELECT date.dateyear, date.datemonth, CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END, CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END FROM(select DISTINCT EXTRACT(YEAR FROM CURRENT_DATE + i) as dateyear, EXTRACT(MONTH FROM CURRENT_DATE + i) as datemonth from generate_series(date '${fromDate}'- CURRENT_DATE, date '${toDate}' - CURRENT_DATE) i ) date LEFT JOIN (SELECT EXTRACT(YEAR FROM sale_date) as dateyear, EXTRACT(MONTH FROM sale_date) as datemonth, sum(quantity) as quantity, sum(total_money) as total_money FROM invoice WHERE EXTRACT(YEAR FROM sale_date) >= EXTRACT(YEAR FROM TIMESTAMP '${fromDate}') AND EXTRACT(MONTH FROM sale_date) >= EXTRACT(MONTH FROM TIMESTAMP '${fromDate}') AND EXTRACT(YEAR FROM sale_date) <= EXTRACT(YEAR FROM TIMESTAMP '${toDate}') AND EXTRACT(MONTH FROM sale_date) <= EXTRACT(MONTH FROM TIMESTAMP '${toDate}') GROUP BY dateyear, datemonth ORDER BY EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date)) as data on date.dateyear = data.dateyear AND data.datemonth = date.datemonth`;
+            queryString = `SELECT date.dateyear,
+                                  date.datemonth,
+                                  CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END,
+                                  CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END
+                           FROM (select DISTINCT EXTRACT(YEAR FROM CURRENT_DATE + i)  as dateyear,
+                                                 EXTRACT(MONTH FROM CURRENT_DATE + i) as datemonth
+                                 from generate_series(date '${fromDate}' - CURRENT_DATE, date '${toDate}' -
+                                                                                         CURRENT_DATE) i) date LEFT JOIN (SELECT EXTRACT(YEAR FROM sale_date) as dateyear, EXTRACT(MONTH FROM sale_date) as datemonth, sum(quantity) as quantity, sum(total_money) as total_money FROM invoice WHERE EXTRACT(YEAR FROM sale_date) >= EXTRACT(YEAR FROM TIMESTAMP '${fromDate}') AND EXTRACT(MONTH FROM sale_date) >= EXTRACT(MONTH FROM TIMESTAMP '${fromDate}') AND EXTRACT(YEAR FROM sale_date) <= EXTRACT(YEAR FROM TIMESTAMP '${toDate}') AND EXTRACT(MONTH FROM sale_date) <= EXTRACT(MONTH FROM TIMESTAMP '${toDate}') GROUP BY dateyear, datemonth ORDER BY EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date)) as data
+                           on date.dateyear = data.dateyear AND data.datemonth = date.datemonth`;
         } else {
-            queryString = `SELECT d.date as sale_date, CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END, CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END from(select CURRENT_DATE + i as date from generate_series(date '${fromDate}'- CURRENT_DATE, date '${toDate}' - CURRENT_DATE) i) d LEFT JOIN (SELECT sale_date, sum(quantity) as quantity, sum(total_money) as total_money FROM invoice WHERE sale_date >= '${fromDate}' AND sale_date <= '${toDate}' GROUP BY sale_date) data ON d.date = data.sale_date`;
+            queryString = `SELECT d.date as sale_date,
+                                  CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END,
+                                  CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END
+                           from (select CURRENT_DATE + i as date
+                                 from generate_series(date '${fromDate}'- CURRENT_DATE, date '${toDate}' - CURRENT_DATE) i) d
+                                    LEFT JOIN (SELECT sale_date,
+                                                      sum(quantity)    as quantity,
+                                                      sum(total_money) as total_money
+                                               FROM invoice
+                                               WHERE sale_date >= '${fromDate}'
+                                                 AND sale_date <= '${toDate}'
+                                               GROUP BY sale_date) data ON d.date = data.sale_date`;
         }
         pool.query(queryString, function (error, results, fields) {
             if (error) throw error;
-            obj['invoice']= results.rows
+            obj['invoice'] = results.rows
             getOrder(type, fromDate, toDate);
         });
     }
@@ -975,11 +1029,31 @@ app.get('/statistics', function (req, res) {
     function getOrder(type, fromDate, toDate) {
         var queryString = '';
         if (type === 'month') {
-            queryString = `SELECT date.dateyear, date.datemonth, CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END, CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END FROM(select DISTINCT EXTRACT(YEAR FROM CURRENT_DATE + i) as dateyear, EXTRACT(MONTH FROM CURRENT_DATE + i) as datemonth from generate_series(date '${fromDate}'- CURRENT_DATE, date '${toDate}' - CURRENT_DATE) i ) date LEFT JOIN (SELECT EXTRACT(YEAR FROM sale_date) as dateyear, EXTRACT(MONTH FROM sale_date) as datemonth, sum(quantity) as quantity, sum(total_money) as total_money FROM orderinvoice WHERE iscompleted IS TRUE AND EXTRACT(YEAR FROM sale_date) >= EXTRACT(YEAR FROM TIMESTAMP '${fromDate}') AND EXTRACT(MONTH FROM sale_date) >= EXTRACT(MONTH FROM TIMESTAMP '${fromDate}') AND EXTRACT(YEAR FROM sale_date) <= EXTRACT(YEAR FROM TIMESTAMP '${toDate}') AND EXTRACT(MONTH FROM sale_date) <= EXTRACT(MONTH FROM TIMESTAMP '${toDate}') GROUP BY dateyear, datemonth ORDER BY EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date)) as data on date.dateyear = data.dateyear AND data.datemonth = date.datemonth`;
+            queryString = `SELECT date.dateyear,
+                                  date.datemonth,
+                                  CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END,
+                                  CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END
+                           FROM (select DISTINCT EXTRACT(YEAR FROM CURRENT_DATE + i)  as dateyear,
+                                                 EXTRACT(MONTH FROM CURRENT_DATE + i) as datemonth
+                                 from generate_series(date '${fromDate}' - CURRENT_DATE, date '${toDate}' -
+                                                                                         CURRENT_DATE) i) date LEFT JOIN (SELECT EXTRACT(YEAR FROM sale_date) as dateyear, EXTRACT(MONTH FROM sale_date) as datemonth, sum(quantity) as quantity, sum(total_money) as total_money FROM orderinvoice WHERE iscompleted IS TRUE AND EXTRACT(YEAR FROM sale_date) >= EXTRACT(YEAR FROM TIMESTAMP '${fromDate}') AND EXTRACT(MONTH FROM sale_date) >= EXTRACT(MONTH FROM TIMESTAMP '${fromDate}') AND EXTRACT(YEAR FROM sale_date) <= EXTRACT(YEAR FROM TIMESTAMP '${toDate}') AND EXTRACT(MONTH FROM sale_date) <= EXTRACT(MONTH FROM TIMESTAMP '${toDate}') GROUP BY dateyear, datemonth ORDER BY EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date)) as data
+                           on date.dateyear = data.dateyear AND data.datemonth = date.datemonth`;
         } else {
-            queryString = `SELECT d.date as sale_date, CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END, CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END from(select CURRENT_DATE + i as date from generate_series(date '${fromDate}'- CURRENT_DATE, date '${toDate}' - CURRENT_DATE) i) d LEFT JOIN (SELECT sale_date, sum(quantity) as quantity, sum(total_money) as total_money FROM orderinvoice WHERE iscompleted IS TRUE AND sale_date >= '${fromDate}' AND sale_date <= '${toDate}' GROUP BY sale_date) data ON d.date = data.sale_date`;
+            queryString = `SELECT d.date as sale_date,
+                                  CASE WHEN data.quantity IS NULL THEN 0 ELSE data.quantity END,
+                                  CASE WHEN data.total_money IS NULL THEN 0 ELSE data.total_money END
+                           from (select CURRENT_DATE + i as date
+                                 from generate_series(date '${fromDate}'- CURRENT_DATE, date '${toDate}' - CURRENT_DATE) i) d
+                                    LEFT JOIN (SELECT sale_date,
+                                                      sum(quantity)    as quantity,
+                                                      sum(total_money) as total_money
+                                               FROM orderinvoice
+                                               WHERE iscompleted IS TRUE
+                                                 AND sale_date >= '${fromDate}'
+                                                 AND sale_date <= '${toDate}'
+                                               GROUP BY sale_date) data ON d.date = data.sale_date`;
         }
-        
+
         pool.query(queryString, function (error, results, fields) {
             if (error) throw error;
             obj['orderinvoice'] = results.rows;
@@ -997,23 +1071,127 @@ app.get('/devices', function (req, res) {
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     console.log(req);
     pool.query(`
-            SELECT 
-                a.id, 
-                a.name, 
-                a.imei, 
-                a.status, 
-                a.price, 
-                a.invoice_id,
-                b.sale_date, 
-                c.name_vietnamese
-            FROM 
-                MOBILE a 
-            JOIN invoice b 
-                ON a.invoice_id = b.id
-            JOIN customer c
-                ON b.customer_id = c.id`,
+                SELECT a.id,
+                       a.name,
+                       a.imei,
+                       a.status,
+                       a.price,
+                       a.invoice_id,
+                       b.sale_date,
+                       c.name_vietnamese
+                FROM MOBILE a
+                         JOIN invoice b
+                              ON a.invoice_id = b.id
+                         JOIN customer c
+                              ON b.customer_id = c.id`,
         function (error, results, fields) {
-        if (error) throw error;
-        res.end(JSON.stringify(results.rows));
-    });
+            if (error) throw error;
+            res.end(JSON.stringify(results.rows));
+        });
+});
+
+app.get('/invoices/report/:id', async function (req, res) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Credentials", true);
+    res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
+    const {id} = req.params;
+    if (notEmpty(id)) {
+        getInvoiceReportDetail(id);
+    } else {
+        res.end(null);
+    }
+
+    // Get Data From DB
+    function getInvoiceReportDetail(invoice_id) {
+        let mobiles = [];
+        const reportHeader = {
+            sale_date: undefined,
+            name_vietnamese: null,
+            name_japanese: null,
+            birthday: undefined,
+            phone: null,
+            job: null,
+            address: null
+        };
+        const summary = {
+            quantity: 0,
+            total_money: 0
+        };
+        const reportDetail = {
+            reportHeader,
+            summary,
+            mobiles
+        }
+        let customer_id = null;
+        pool.query('SELECT * FROM mobile WHERE invoice_id = $1', [invoice_id], function (error, results, fields) {
+            if (error) throw error;
+            mobiles = results.rows;
+            const invoiceSummarySql = `SELECT tblA.invoice_id,
+                                              tblA.quantity,
+                                              tblA.total_money,
+                                              tblB.sale_date,
+                                              tblB.customer_id
+                                       FROM (
+                                                SELECT invoice_id, COUNT(*) AS quantity, SUM(price) AS total_money
+                                                FROM mobile
+                                                GROUP BY invoice_id
+                                                HAVING invoice_id = $1
+                                            ) tblA
+                                                JOIN (
+                                           SELECT *
+                                           FROM invoice
+                                           WHERE id = $1
+                                       ) tblB ON tblA.invoice_id = tblB.id`;
+            pool.query(invoiceSummarySql, [invoice_id], function (error, results, fields) {
+                if (!error && results.rows.length > 0) {
+                    const invoiceDetail = results.rows[0];
+                    reportHeader.sale_date = invoiceDetail.sale_date;
+                    summary.quantity = invoiceDetail.quantity;
+                    summary.total_money = invoiceDetail.total_money;
+                    customer_id = invoiceDetail.customer_id;
+
+                    const customerDataSql = `SELECT *
+                                             FROM customer
+                                             WHERE id = $1`;
+                    pool.query(customerDataSql, [customer_id], async function (error, results, fields) {
+                        if (!error && results.rows.length > 0) {
+                            const customer = results.rows[0];
+                            reportHeader.job = customer.job;
+                            reportHeader.phone = customer.phone;
+                            reportHeader.address = customer.address;
+                            reportHeader.birthday = customer.birthday;
+                            reportHeader.name_japanese = customer.name_japanese;
+                            reportHeader.name_vietnamese = customer.name_vietnamese;
+
+                            reportDetail.reportHeader = reportHeader;
+                            reportDetail.summary = summary;
+                            reportDetail.mobiles = mobiles;
+                            await generateInvoiceReportExcel(reportDetail);
+                        } else {
+                            res.end(null);
+                        }
+                    })
+                } else {
+                    res.end(null);
+                }
+
+            })
+        });
+    }
+
+    async function generateInvoiceReportExcel(reportDetail = null) {
+        if (notEmpty(reportDetail)) {
+            const exportService = new ExportService();
+            await exportService.invoiceReport(reportDetail).then((bufferResponse) => {
+                console.log('>>> Generate Invoice Report Finished! Customer Name: ', reportDetail.reportHeader.name_vietnamese);
+                res.end(bufferResponse);
+            }).catch((e) => {
+                console.log('>>> Invoice Report: ', e);
+                res.end(null);
+            });
+        } else {
+            res.end(null);
+        }
+    }
 });
