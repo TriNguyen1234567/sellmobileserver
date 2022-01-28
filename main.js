@@ -4,9 +4,9 @@ var app = express();
 var mysql = require('mysql');
 var bodyParser = require('body-parser');
 var cors = require('cors');
-const {Pool} = require('pg');
-const {ExportService} = require('./services/export.service');
-const {notEmpty} = require("./utils/data.utils");
+const { Pool } = require('pg');
+const { ExportService } = require('./services/export.service');
+const { notEmpty } = require("./utils/data.utils");
 
 //MySQL connection
 // var connection = mysql.createConnection({
@@ -40,7 +40,7 @@ const pool = new Pool({
     }
 })
 
-module.exports = {pool}
+module.exports = { pool }
 
 //Body-parser configuration
 app.use(bodyParser.json());       // to support JSON-encoded bodies
@@ -363,8 +363,8 @@ app.get('/app/info', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     res.end(JSON.stringify({
-        version: '1.0.1',
-        release: '20220128 v2'
+        version: '1.0.2',
+        release: '20220129 v1'
     }))
 });
 
@@ -417,7 +417,7 @@ app.post('/customers', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const {name_vietnamese, name_japanese, birthday, age, address, phone, job} = req.body;
+    const { name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
     const customer = {
         name_vietnamese,
         name_japanese,
@@ -439,7 +439,7 @@ app.put('/customers', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const {id, name_vietnamese, name_japanese, birthday, age, address, phone, job} = req.body;
+    const { id, name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
     const customer = {
         id,
         name_vietnamese,
@@ -484,7 +484,7 @@ app.get('/invoices/items/:id', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const {id} = req.params;
+    const { id } = req.params;
     const customer = {
         id: null,
         address: '',
@@ -563,7 +563,7 @@ app.post('/invoices', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
 
-    const {invoice_id, customer, mobiles, sale_date, total_money, quantity} = postData;
+    const { invoice_id, customer, mobiles, sale_date, total_money, quantity } = postData;
     const customer_id = null;
     const invoiceData = {
         customer_id, sale_date, quantity, total_money
@@ -603,7 +603,7 @@ app.post('/invoices', function (req, res) {
                                          phone=$7,
                                          job=$8
                                      where id = $1 RETURNING id`;
-        const {id, name_vietnamese, name_japanese, birthday, age, address, phone, job} = customer;
+        const { id, name_vietnamese, name_japanese, birthday, age, address, phone, job } = customer;
         pool.query(updateCustomerQuery, Object.values({
             id,
             name_vietnamese,
@@ -654,7 +654,7 @@ app.post('/invoices', function (req, res) {
      * @param invoiceItems
      */
     function saveInvoiceItems(invoiceItems = null) {
-        const {invoice_id, mobiles} = invoiceItems;
+        const { invoice_id, mobiles } = invoiceItems;
         if (invoice_id != null && mobiles.length > 0) {
             let sqlString = 'INSERT INTO mobile (name, imei, color, status, price, invoice_id) VALUES ';
             const valueItems = []
@@ -708,7 +708,7 @@ app.put('/invoices', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
 
-    const {invoice_id, customer, customer_id, mobiles, sale_date, total_money, quantity} = postData;
+    const { invoice_id, customer, customer_id, mobiles, sale_date, total_money, quantity } = postData;
     const invoiceData = {
         customer_id, sale_date, quantity, total_money
     };
@@ -779,37 +779,56 @@ app.put('/invoices', function (req, res) {
             const valueItems = [];
             var insertMobilesSuccess = false;
             var updateMobilesSuccess = false;
+            let sqlStringUpdate = [];
             mobiles.forEach((mobile) => {
 
                 if (mobile.id == 0) {
                     valueItems.push(`('${mobile.name}', '${mobile.imei}', '${mobile.color}', '${mobile.status}', ${mobile.price}, ${invoice_id})`);
                 } else {
-                    let sqlStringUpdate = `UPDATE mobile
+                    if (mobile.invoice_id > -1) {
+                        let item = `UPDATE mobile
                                            SET name   = '${mobile.name}',
                                                imei   = '${mobile.imei}',
                                                color  = '${mobile.color}',
                                                status = '${mobile.status}',
                                                price  = ${mobile.price}
                                            where id = ${mobile.id} `;
-                    pool.query(sqlStringUpdate, function (error, results, fields) {
-                        if (error) throw error;
-                        if (results.rows) {
-                            updateMobilesSuccess = true;
-                        }
+                        sqlStringUpdate.push(item);
+                    } else {
+                        let item = `DELETE FROM mobile WHERE id = ${mobile.id}`;
+                        sqlStringUpdate.push(item);
+                    }
 
-                    });
                 }
             });
-            if (valueItems.length !== 0) {
-                sqlString += valueItems.join(', ');
-                pool.query(sqlString, function (error, results, fields) {
+            if (sqlStringUpdate.length > 0) {
+                var sqlStr = sqlStringUpdate.join('; ') + ';';
+                pool.query(sqlStr, function (error, results, fields) {
                     if (error) throw error;
-                    if (results.rows) {
-                        insertMobilesSuccess = true;
+                    if (valueItems.length !== 0) {
+                        sqlString += valueItems.join(', ');
+                        pool.query(sqlString, function (error, results, fields) {
+                            if (error) throw error;
+                            if (results.rows) {
+                                insertMobilesSuccess = true;
+                            }
+
+                        });
                     }
 
                 });
+            } else {
+                if (valueItems.length !== 0) {
+                    sqlString += valueItems.join(', ');
+                    pool.query(sqlString, function (error, results, fields) {
+                        if (error) throw error;
+                        if (results.rows) {
+                            insertMobilesSuccess = true;
+                        }
+                    });
+                }
             }
+
             saveInvoiceResponse({
                 success: true,
             });
@@ -845,9 +864,9 @@ app.post('/orderInvoices', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const {mobiles, sale_date, total_money, quantity} = postData;
+    const { mobiles, sale_date, total_money, quantity } = postData;
 
-    createOrderInvoice({sale_date, quantity, total_money});
+    createOrderInvoice({ sale_date, quantity, total_money });
 
     function createOrderInvoice(data) {
         if (data !== null) {
@@ -908,7 +927,7 @@ app.get('/orderInvoices/Pending', function (req, res) {
 });
 
 app.get('/orderInvoices/details/:id', function (req, res) {
-    const {id} = req.params;
+    const { id } = req.params;
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
@@ -929,9 +948,9 @@ app.put('/orderInvoices', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const {mobiles, id, total_money} = postData;
+    const { mobiles, id, total_money } = postData;
 
-    updateOrderInvoices({id, total_money});
+    updateOrderInvoices({ id, total_money });
 
     function updateOrderInvoices(data) {
         if (data !== null) {
@@ -1109,7 +1128,7 @@ app.get('/invoices/report/:id', async function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const {id} = req.params;
+    const { id } = req.params;
     if (notEmpty(id)) {
         getInvoiceReportDetail(id);
     } else {
