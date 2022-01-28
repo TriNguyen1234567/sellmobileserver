@@ -364,7 +364,7 @@ app.get('/app/info', function (req, res) {
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     res.end(JSON.stringify({
         version: '1.0.1',
-        release: '20220128'
+        release: '20220128 v2'
     }))
 });
 
@@ -495,8 +495,9 @@ app.get('/invoices/items/:id', function (req, res) {
         name_vietnamese: '',
         phone: ''
     }
+    let mobiles = [];
     const invoiceInfo = {
-        mobiles: [],
+        mobiles,
         invoice_id: null,
         quantity: 0,
         sale_date: null,
@@ -505,9 +506,9 @@ app.get('/invoices/items/:id', function (req, res) {
     }
     pool.query('SELECT * FROM mobile WHERE invoice_id = $1', [id], function (error, results, fields) {
         if (error) throw error;
-        if (results.rows.length > 0) {
-            invoiceInfo.mobiles = results.rows;
-            const invoiceSummarySql = `SELECT tblA.invoice_id,
+        if (!error) {
+            mobiles = results.rows;
+            let invoiceSummarySql = `SELECT tblA.invoice_id,
                                               tblA.quantity,
                                               tblA.total_money,
                                               tblB.sale_date,
@@ -524,6 +525,9 @@ app.get('/invoices/items/:id', function (req, res) {
                                            WHERE id = $1
                                        ) tblB
                                                      ON tblA.invoice_id = tblB.id`;
+            if (mobiles.length == 0) {
+                invoiceSummarySql = `SELECT *, 0 as quantity, 0 as total_money, id as invoice_id FROM invoice WHERE id = $1`;
+            }
             pool.query(invoiceSummarySql, [id], function (error, results, fields) {
                 if (!error && results.rows.length > 0) {
                     const invoiceDetail = results.rows[0];
@@ -539,6 +543,7 @@ app.get('/invoices/items/:id', function (req, res) {
                     pool.query(customerDataSql, [invoiceDetail.customer_id], function (error, results, fields) {
                         if (!error && results.rows.length > 0) {
                             invoiceInfo.customer = results.rows[0];
+                            invoiceInfo.mobiles = mobiles;
                             res.end(JSON.stringify(invoiceInfo));
                         }
                     })
@@ -546,7 +551,7 @@ app.get('/invoices/items/:id', function (req, res) {
 
             })
         } else {
-            res.end(JSON.stringify(invoiceInfo));
+            res.end(null);
         }
     });
 });
@@ -598,7 +603,17 @@ app.post('/invoices', function (req, res) {
                                          phone=$7,
                                          job=$8
                                      where id = $1 RETURNING id`;
-        pool.query(updateCustomerQuery, Object.values(customer), function (error, results, fields) {
+        const {id, name_vietnamese, name_japanese, birthday, age, address, phone, job} = customer;
+        pool.query(updateCustomerQuery, Object.values({
+            id,
+            name_vietnamese,
+            name_japanese,
+            birthday,
+            age,
+            address,
+            phone,
+            job
+        }), function (error, results, fields) {
             if (error) throw error;
             if (results.rows[0].id) {
                 invoiceData.customer_id = results.rows[0].id;
@@ -787,7 +802,6 @@ app.put('/invoices', function (req, res) {
             });
             if (valueItems.length !== 0) {
                 sqlString += valueItems.join(', ');
-                console.log(sqlString);
                 pool.query(sqlString, function (error, results, fields) {
                     if (error) throw error;
                     if (results.rows) {
