@@ -363,8 +363,8 @@ app.get('/app/info', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     res.end(JSON.stringify({
-        version: '1.0.2',
-        release: '20220129 v1'
+        version: '1.0.3',
+        release: '20220129 v2'
     }))
 });
 
