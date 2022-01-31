@@ -4,9 +4,9 @@ var app = express();
 var mysql = require('mysql');
 var bodyParser = require('body-parser');
 var cors = require('cors');
-const { Pool } = require('pg');
-const { ExportService } = require('./services/export.service');
-const { notEmpty } = require("./utils/data.utils");
+const {Pool} = require('pg');
+const {ExportService} = require('./services/export.service');
+const {notEmpty} = require("./utils/data.utils");
 
 //MySQL connection
 // var connection = mysql.createConnection({
@@ -40,7 +40,7 @@ const pool = new Pool({
     }
 })
 
-module.exports = { pool }
+module.exports = {pool}
 
 //Body-parser configuration
 app.use(bodyParser.json());       // to support JSON-encoded bodies
@@ -363,8 +363,8 @@ app.get('/app/info', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
     res.end(JSON.stringify({
-        version: '1.0.3',
-        release: '20220129 v2'
+        version: '1.0.1',
+        release: '20220128 v2'
     }))
 });
 
@@ -417,7 +417,7 @@ app.post('/customers', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
+    const {name_vietnamese, name_japanese, birthday, age, address, phone, job} = req.body;
     const customer = {
         name_vietnamese,
         name_japanese,
@@ -439,7 +439,7 @@ app.put('/customers', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { id, name_vietnamese, name_japanese, birthday, age, address, phone, job } = req.body;
+    const {id, name_vietnamese, name_japanese, birthday, age, address, phone, job} = req.body;
     const customer = {
         id,
         name_vietnamese,
@@ -484,7 +484,7 @@ app.get('/invoices/items/:id', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { id } = req.params;
+    const {id} = req.params;
     const customer = {
         id: null,
         address: '',
@@ -509,24 +509,26 @@ app.get('/invoices/items/:id', function (req, res) {
         if (!error) {
             mobiles = results.rows;
             let invoiceSummarySql = `SELECT tblA.invoice_id,
-                                              tblA.quantity,
-                                              tblA.total_money,
-                                              tblB.sale_date,
-                                              tblB.customer_id
-                                       FROM (
-                                                SELECT invoice_id, COUNT(*) AS quantity, SUM(price) AS total_money
-                                                FROM mobile
-                                                GROUP BY invoice_id
-                                                HAVING invoice_id = $1
-                                            ) tblA
-                                                JOIN (
-                                           SELECT *
-                                           FROM invoice
-                                           WHERE id = $1
-                                       ) tblB
-                                                     ON tblA.invoice_id = tblB.id`;
+                                            tblA.quantity,
+                                            tblA.total_money,
+                                            tblB.sale_date,
+                                            tblB.customer_id
+                                     FROM (
+                                              SELECT invoice_id, COUNT(*) AS quantity, SUM(price) AS total_money
+                                              FROM mobile
+                                              GROUP BY invoice_id
+                                              HAVING invoice_id = $1
+                                          ) tblA
+                                              JOIN (
+                                         SELECT *
+                                         FROM invoice
+                                         WHERE id = $1
+                                     ) tblB
+                                                   ON tblA.invoice_id = tblB.id`;
             if (mobiles.length == 0) {
-                invoiceSummarySql = `SELECT *, 0 as quantity, 0 as total_money, id as invoice_id FROM invoice WHERE id = $1`;
+                invoiceSummarySql = `SELECT *, 0 as quantity, 0 as total_money, id as invoice_id
+                                     FROM invoice
+                                     WHERE id = $1`;
             }
             pool.query(invoiceSummarySql, [id], function (error, results, fields) {
                 if (!error && results.rows.length > 0) {
@@ -563,7 +565,7 @@ app.post('/invoices', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
 
-    const { invoice_id, customer, mobiles, sale_date, total_money, quantity } = postData;
+    const {invoice_id, customer, mobiles, sale_date, total_money, quantity} = postData;
     const customer_id = null;
     const invoiceData = {
         customer_id, sale_date, quantity, total_money
@@ -603,7 +605,7 @@ app.post('/invoices', function (req, res) {
                                          phone=$7,
                                          job=$8
                                      where id = $1 RETURNING id`;
-        const { id, name_vietnamese, name_japanese, birthday, age, address, phone, job } = customer;
+        const {id, name_vietnamese, name_japanese, birthday, age, address, phone, job} = customer;
         pool.query(updateCustomerQuery, Object.values({
             id,
             name_vietnamese,
@@ -654,7 +656,7 @@ app.post('/invoices', function (req, res) {
      * @param invoiceItems
      */
     function saveInvoiceItems(invoiceItems = null) {
-        const { invoice_id, mobiles } = invoiceItems;
+        const {invoice_id, mobiles} = invoiceItems;
         if (invoice_id != null && mobiles.length > 0) {
             let sqlString = 'INSERT INTO mobile (name, imei, color, status, price, invoice_id) VALUES ';
             const valueItems = []
@@ -708,7 +710,7 @@ app.put('/invoices', function (req, res) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
 
-    const { invoice_id, customer, customer_id, mobiles, sale_date, total_money, quantity } = postData;
+    const {invoice_id, customer, customer_id, mobiles, sale_date, total_money, quantity} = postData;
     const invoiceData = {
         customer_id, sale_date, quantity, total_money
     };
@@ -787,15 +789,17 @@ app.put('/invoices', function (req, res) {
                 } else {
                     if (mobile.invoice_id > -1) {
                         let item = `UPDATE mobile
-                                           SET name   = '${mobile.name}',
-                                               imei   = '${mobile.imei}',
-                                               color  = '${mobile.color}',
-                                               status = '${mobile.status}',
-                                               price  = ${mobile.price}
-                                           where id = ${mobile.id} `;
+                                    SET name   = '${mobile.name}',
+                                        imei   = '${mobile.imei}',
+                                        color  = '${mobile.color}',
+                                        status = '${mobile.status}',
+                                        price  = ${mobile.price}
+                                    where id = ${mobile.id} `;
                         sqlStringUpdate.push(item);
                     } else {
-                        let item = `DELETE FROM mobile WHERE id = ${mobile.id}`;
+                        let item = `DELETE
+                                    FROM mobile
+                                    WHERE id = ${mobile.id}`;
                         sqlStringUpdate.push(item);
                     }
 
@@ -864,9 +868,9 @@ app.post('/orderInvoices', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { mobiles, sale_date, total_money, quantity } = postData;
+    const {mobiles, sale_date, total_money, quantity} = postData;
 
-    createOrderInvoice({ sale_date, quantity, total_money });
+    createOrderInvoice({sale_date, quantity, total_money});
 
     function createOrderInvoice(data) {
         if (data !== null) {
@@ -925,9 +929,76 @@ app.get('/orderInvoices/Pending', function (req, res) {
         res.end(JSON.stringify(results.rows));
     });
 });
+app.put('/orderInvoices/pending/:id', function (req, res) {
+    const {id} = req.params;
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Credentials", true);
+    res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
+    const {sale_date, quantity, total_money, mobiles} = req.body;
+    updateInvoiceDetail();
+
+    // Update quantity and total_money in the invoice and mark this invoice is complete
+    function updateInvoiceDetail() {
+        pool.query(`UPDATE orderinvoice
+                    SET sale_date=$2,
+                        quantity=$3,
+                        total_money=$4,
+                        iscompleted = true
+                    WHERE id = $1`, Object.values({
+            id,
+            sale_date,
+            quantity,
+            total_money
+        }), function (error, results, fields) {
+            if (!error) {
+                returnsMobileItems();
+            } else {
+                console.log('>>>> Error: ', error);
+                res.end(null);
+            }
+        });
+    }
+
+    // Remove mobiles item that not in mobiles list
+    function returnsMobileItems() {
+        let returnsMobileItemSql = `DELETE FROM orderdetail WHERE orderid=${1}`;
+        if (notEmpty(mobiles) && mobiles.length > 0) {
+            const mobile_ids = mobiles.map(m => m.id).join(',');
+            returnsMobileItemSql = `DELETE FROM orderdetail WHERE mobileid NOT IN(${mobile_ids}) AND orderid=${id}`
+        }
+        pool.query(returnsMobileItemSql, function (error, results, fields) {
+            if (!error) {
+                updateInvoiceItemPrice();
+            } else {
+                console.log('>>>> Error: ', error);
+                res.end(null);
+            }
+        });
+        res.end(null);
+    }
+
+    // Update price value of mobiles in the invoice detail
+    function updateInvoiceItemPrice() {
+        const sql_updates = mobiles.map(m => {
+            return `UPDATE orderdetail SET price = ${m.price} WHERE mobileid = ${m.id} AND orderid = ${id};`;
+        });
+        if (notEmpty(sql_updates)) {
+            pool.query(sql_updates.join(''), function (error, results, fields) {
+                if (!error) {
+                    res.end(JSON.stringify({success: true}));
+                } else {
+                    res.end(null);
+                }
+            });
+        } else {
+            res.end(JSON.stringify({success: true}))
+        }
+    }
+});
 
 app.get('/orderInvoices/details/:id', function (req, res) {
-    const { id } = req.params;
+    const {id} = req.params;
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
@@ -948,9 +1019,9 @@ app.put('/orderInvoices', function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { mobiles, id, total_money } = postData;
+    const {mobiles, id, total_money} = postData;
 
-    updateOrderInvoices({ id, total_money });
+    updateOrderInvoices({id, total_money});
 
     function updateOrderInvoices(data) {
         if (data !== null) {
@@ -1128,7 +1199,7 @@ app.get('/invoices/report/:id', async function (req, res) {
     res.header("Access-Control-Allow-Credentials", true);
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
-    const { id } = req.params;
+    const {id} = req.params;
     if (notEmpty(id)) {
         getInvoiceReportDetail(id);
     } else {

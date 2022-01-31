@@ -1,5 +1,5 @@
 const ExcelJs = require('exceljs');
-const {getAge, getAgeText, dateFormat, getJobText, getDeviceStatusText} = require("../utils/common.utils");
+const {getAge, getAgeText, dateFormat, getJobText, getDeviceStatusText, priceWithFormat} = require("../utils/common.utils");
 const {notEmpty} = require("../utils/data.utils");
 
 const EXPORT_TEMPLATES = {
@@ -80,7 +80,7 @@ class ExportService {
         const quantityAddress = `${INVOICE_EXPORT_CELLS.SUMMARY_QUANTITY_COLUMN}${summaryRowIndex}`;
         ws.getCell(quantityAddress).value = quantity;
         const totalMoneyAddress = `${INVOICE_EXPORT_CELLS.SUMMARY_MONEY_COLUMN}${summaryRowIndex}`;
-        ws.getCell(totalMoneyAddress).value = total_money;
+        ws.getCell(totalMoneyAddress).value = priceWithFormat(total_money);
         return wb;
     }
 
@@ -104,7 +104,7 @@ class ExportService {
                 currentRow.getCell(`${INVOICE_EXPORT_CELLS.MOBILE_COLOR_COLUMN}`).value = color;
                 currentRow.getCell(`${INVOICE_EXPORT_CELLS.MOBILE_STATUS_COLUMN}`).value = getDeviceStatusText(status);
                 currentRow.getCell(`${INVOICE_EXPORT_CELLS.MOBILE_IMEI_COLUMN}`).value = imei;
-                currentRow.getCell(`${INVOICE_EXPORT_CELLS.MOBILE_PRICE_COLUMN}`).value = price;
+                currentRow.getCell(`${INVOICE_EXPORT_CELLS.MOBILE_PRICE_COLUMN}`).value = priceWithFormat(price);
                 currentRow.commit();
             });
 
