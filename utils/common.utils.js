@@ -46,12 +46,17 @@ const dateFormat = (date, isJapanese = true) => {
     return null;
 }
 
+const priceWithFormat = (price = 0, separator = ',') => {
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, `${separator}`);
+}
+
 module.exports = {
     isDate,
     getAge,
     getAgeText,
     getJobText,
     getDeviceStatusText,
+    priceWithFormat,
     dateFormat,
     CURRENT_YEAR
 }
