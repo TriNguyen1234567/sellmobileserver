@@ -1,5 +1,12 @@
 const ExcelJs = require('exceljs');
-const {getAge, getAgeText, dateFormat, getJobText, getDeviceStatusText, priceWithFormat} = require("../utils/common.utils");
+const {
+    getAge,
+    getAgeText,
+    dateFormat,
+    getJobText,
+    getDeviceStatusText,
+    priceWithFormat
+} = require("../utils/common.utils");
 const {notEmpty} = require("../utils/data.utils");
 
 const EXPORT_TEMPLATES = {
@@ -125,6 +132,10 @@ class ExportService {
                     const mergeCellPrice = `${defaultCellPrice}:${alterCellPrice}`;
                     if (!ws.getCell(mergeCellPrice).isMerged) {
                         ws.getCell(alterCellPrice).merge(ws.getCell(defaultCellPrice));
+                        const mergeCellPriceBorder = ws.getCell(mergeCellPrice).border;
+                        if (notEmpty(mergeCellPriceBorder)) {
+                            mergeCellPriceBorder.right = {style: 'thin'};
+                        }
                     }
                 }
             }
