@@ -929,6 +929,41 @@ app.get('/orderInvoices/Pending', function (req, res) {
         res.end(JSON.stringify(results.rows));
     });
 });
+app.delete('/orderInvoices/pending/:id', function (req, res) {
+    const {id} = req.params;
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Credentials", true);
+    res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,content-type,application/json");
+
+    returnsAllMobileItems();
+
+    // Remove mobiles item that not in mobiles list
+    function returnsAllMobileItems() {
+        pool.query(`DELETE FROM orderdetail WHERE orderid=${id}`, function (error, results, fields) {
+            if (!error) {
+                removePendingInvoice();
+            } else {
+                console.log('>>>> Error: ', error);
+                res.end(null);
+            }
+        });
+        res.end(null);
+    }
+
+    // Remove Pending Invoice
+    function removePendingInvoice() {
+        pool.query(`DELETE FROM orderinvoice WHERE id=${id} AND iscompleted = false`, function (error, results, fields) {
+            if (!error) {
+                res.end(JSON.stringify({success: true}));
+            } else {
+                res.end(null);
+            }
+        });
+        res.end(null);
+    }
+
+});
 app.put('/orderInvoices/pending/:id', function (req, res) {
     const {id} = req.params;
     res.header("Access-Control-Allow-Origin", "*");
@@ -962,7 +997,7 @@ app.put('/orderInvoices/pending/:id', function (req, res) {
 
     // Remove mobiles item that not in mobiles list
     function returnsMobileItems() {
-        let returnsMobileItemSql = `DELETE FROM orderdetail WHERE orderid=${1}`;
+        let returnsMobileItemSql = `DELETE FROM orderdetail WHERE orderid=${id}`;
         if (notEmpty(mobiles) && mobiles.length > 0) {
             const mobile_ids = mobiles.map(m => m.id).join(',');
             returnsMobileItemSql = `DELETE FROM orderdetail WHERE mobileid NOT IN(${mobile_ids}) AND orderid=${id}`
